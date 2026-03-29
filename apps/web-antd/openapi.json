@@ -1,0 +1,366 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AIDOC Backend API",
+    "version": "1.0.0",
+    "description": "所有接口统一响应结构 { code, data, err, msg }，成功 code=200。鉴权采用 Bearer JWT。"
+  },
+  "servers": [
+    { "url": "http://localhost:3000/api/v1" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "running" },
+          "version": { "type": "string", "example": "1.0.0" },
+          "database": { "type": "string", "example": "connected" }
+        },
+        "required": ["status", "version", "database"]
+      },
+      "SystemStatus": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "running" },
+          "version": { "type": "string", "example": "1.0.0" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "ws_base_url": { "type": "string" },
+          "goroutines": { "type": "integer" },
+          "alloc_bytes": { "type": "integer" },
+          "heap_alloc_bytes": { "type": "integer" },
+          "heap_inuse_bytes": { "type": "integer" },
+          "stack_inuse_bytes": { "type": "integer" },
+          "gc_count": { "type": "integer" },
+          "gc_pause_total_ns": { "type": "integer" },
+          "gpu_servers_count": { "type": "integer" },
+          "cpu_servers_count": { "type": "integer" },
+          "storage_servers_count": { "type": "integer" }
+        },
+        "required": ["status", "version"]
+      },
+      "BaseResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "data": { "nullable": true },
+          "err": { "type": "string", "example": "" },
+          "msg": { "type": "string", "example": "" }
+        },
+        "required": ["code", "data", "err", "msg"]
+      },
+      "AuthMeData": {
+        "type": "object",
+        "properties": { "username": { "type": "string" } },
+        "required": ["username"]
+      },
+      "AuthUser": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" },
+          "nickname": { "type": "string" },
+          "roles": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["username", "roles"]
+      },
+      "SystemMenuItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "icon": { "type": "string" },
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/SystemMenuItem" } }
+        },
+        "required": ["id", "name", "path"]
+      },
+      "MenuAllItem": {
+        "type": "object",
+        "properties": {
+          "component": { "type": "string" },
+          "meta": { "type": "object", "additionalProperties": true },
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "redirect": { "type": "string" },
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/MenuAllItem" } }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/status": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "查询健康状态",
+        "description": "HTTP GET 返回健康状态 JSON",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthStatus" } } }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "登录",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "username": {"type":"string"}, "password": {"type":"string"} }, "required": ["username","password"] } } } },
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "登出",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "刷新令牌",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "当前用户基础信息",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+    "/auth/userinfo": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "当前用户详细信息",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+    "/system/status": {
+      "get": {
+        "tags": ["System"],
+        "summary": "查询系统状态",
+        "description": "HTTP GET 返回系统状态 JSON；包含运行时指标与服务器数量字段",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemStatus" } } }
+          }
+        }
+      }
+    },
+    "/system/menu": {
+      "get": { "tags": ["System"], "summary": "静态菜单", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/menu/all": {
+      "get": { "tags": ["Menu"], "summary": "用户菜单（鉴权）", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/server/list": {
+      "get": { "tags": ["ServerList"], "summary": "服务器列表聚合", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/server/list/stats": {
+      "get": { "tags": ["ServerList"], "summary": "服务器列表统计", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/gpu/server": {
+      "get": { "tags": ["GPU"], "summary": "GPU 服务器列表（未传分页返回全部）", "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }, { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } }, { "name": "id", "in": "query", "schema": { "type": "string" } }, { "name": "search", "in": "query", "schema": { "type": "string" } } ], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/gpu/server/stats": {
+      "get": { "tags": ["GPU"], "summary": "GPU 服务器统计", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/gpu/server/refresh": {
+      "post": { "tags": ["GPU"], "summary": "刷新 GPU 状态", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/gpu/server/{id}/details": {
+      "get": { "tags": ["GPU"], "summary": "GPU 服务器详情", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }
+    },
+    "/gpu/server/refresh/stream": {
+      "get": { "tags": ["GPU"], "summary": "GPU 刷新流（SSE）", "responses": { "200": { "description": "事件流", "content": { "text/event-stream": { "schema": { "type": "string" } } } } } }
+    },
+    "/cpu/server": { "get": { "tags": ["CPU"], "summary": "CPU 服务器列表（未传分页返回全部）", "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }, { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } }, { "name": "id", "in": "query", "schema": { "type": "string" } }, { "name": "search", "in": "query", "schema": { "type": "string" } } ], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/cpu/server/stats": { "get": { "tags": ["CPU"], "summary": "CPU 服务器统计", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/cpu/server/{id}/details": { "get": { "tags": ["CPU"], "summary": "CPU 服务器详情", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/cpu/server/refresh": { "post": { "tags": ["CPU"], "summary": "刷新 CPU 状态", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/cpu/server/test-connection": { "post": { "tags": ["CPU"], "summary": "CPU 连接测试", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object","properties":{"id":{"type":"integer"},"ip":{"type":"string"}}, "required": ["ip"]}}}}, "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/cpu/server/refresh/stream": { "get": { "tags": ["CPU"], "summary": "CPU 刷新流（SSE）", "responses": { "200": { "description": "事件流", "content": { "text/event-stream": { "schema": { "type": "string" } } } } } } },
+    "/storage/server": { "get": { "tags": ["Storage"], "summary": "存储服务器列表（未传分页返回全部）", "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }, { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } }, { "name": "id", "in": "query", "schema": { "type": "string" } }, { "name": "search", "in": "query", "schema": { "type": "string" } } ], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/storage/server/stats": { "get": { "tags": ["Storage"], "summary": "存储服务器统计", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/storage/server/{id}/details": { "get": { "tags": ["Storage"], "summary": "存储服务器详情", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/storage/server/refresh": { "post": { "tags": ["Storage"], "summary": "刷新存储状态", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/storage/server/refresh/stream": { "get": { "tags": ["Storage"], "summary": "存储刷新流（SSE）", "responses": { "200": { "description": "事件流", "content": { "text/event-stream": { "schema": { "type": "string" } } } } } } },
+    "/env/check/servers": { "get": { "tags": ["EnvCheck"], "summary": "环境检查服务器列表（未传分页返回全部）", "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "pageSize", "in": "query", "schema": { "type": "integer" } }, { "name": "search", "in": "query", "schema": { "type": "string" } }, { "name": "status", "in": "query", "schema": { "type": "string" } }, { "name": "server_type", "in": "query", "schema": { "type": "string" } }, { "name": "location", "in": "query", "schema": { "type": "string" } } ], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/servers/{server_id}": { "get": { "tags": ["EnvCheck"], "summary": "服务器详情", "parameters": [{"name":"server_id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/history": { "get": { "tags": ["EnvCheck"], "summary": "检查历史", "parameters": [{"name":"page","in":"query","schema":{"type":"integer"}}, {"name":"pageSize","in":"query","schema":{"type":"integer"}}, {"name":"server_id","in":"query","schema":{"type":"integer"}}, {"name":"startDate","in":"query","schema":{"type":"string"}}, {"name":"endDate","in":"query","schema":{"type":"string"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/stats": { "get": { "tags": ["EnvCheck"], "summary": "统计数据", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/excel-data": { "get": { "tags": ["EnvCheck"], "summary": "Excel 数据", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/deployment-progress": { "get": { "tags": ["EnvCheck"], "summary": "部署进度", "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/upload-history": { "get": { "tags": ["EnvCheck"], "summary": "上传记录", "parameters": [{"name":"page","in":"query","schema":{"type":"integer"}}, {"name":"pageSize","in":"query","schema":{"type":"integer"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } } },
+    "/env/check/config": { "get": { "tags": ["EnvCheck.Config"], "summary": "配置列表", "parameters": [{"name":"server_type","in":"query","schema":{"type":"string"}}, {"name":"is_active","in":"query","schema":{"type":"boolean"}}], "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } } }, "post": { "tags": ["EnvCheck.Config"], "summary": "创建配置", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object","properties":{"config_name":{"type":"string"},"server_type":{"type":"string"},"description":{"type":"string"},"check_items":{"type":"object"},"is_active":{"type":"boolean"},"created_by":{"type":"string"}}, "required":["config_name","server_type","check_items"] }}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/config/{config_id}": { "get": { "tags": ["EnvCheck.Config"], "summary": "配置详情", "parameters": [{"name":"config_id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} }, "put": { "tags": ["EnvCheck.Config"], "summary": "更新配置", "parameters": [{"name":"config_id","in":"path","required":true,"schema":{"type":"integer"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} }, "delete": { "tags": ["EnvCheck.Config"], "summary": "删除配置", "parameters": [{"name":"config_id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/config/default/{server_type}": { "get": { "tags": ["EnvCheck.Config"], "summary": "默认配置", "parameters": [{"name":"server_type","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/config/stats/summary": { "get": { "tags": ["EnvCheck.Config"], "summary": "配置统计汇总", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/execution/summary/{server_id}": { "get": { "tags": ["EnvCheck.Exec"], "summary": "执行摘要", "parameters": [{"name":"server_id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/execution/check": { "post": { "tags": ["EnvCheck.Exec"], "summary": "统一执行入口（批量/单台）", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object","properties":{"server_ids":{"type":"array","items":{"type":"integer"}},"config_id":{"type":"integer"},"check_types":{"type":"array","items":{"type":"string"}}}, "required":["server_ids"]}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/execution/results/{server_id}": { "get": { "tags": ["EnvCheck.Exec"], "summary": "执行结果列表", "parameters": [{"name":"server_id","in":"path","required":true,"schema":{"type":"integer"}}, {"name":"limit","in":"query","schema":{"type":"integer","default":50}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/execution/batch-summary": { "get": { "tags": ["EnvCheck.Exec"], "summary": "批量汇总", "parameters": [{"name":"server_ids","in":"query","required":true,"schema":{"type":"string","example":"1,2,3"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/tasks": { "get": { "tags": ["EnvCheck.Tasks"], "summary": "任务列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer"}}, {"name":"pageSize","in":"query","schema":{"type":"integer"}}, {"name":"status","in":"query","schema":{"type":"string"}}, {"name":"task_type","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} }, "post": { "tags": ["EnvCheck.Tasks"], "summary": "创建任务", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/tasks/{task_id}": { "get": { "tags": ["EnvCheck.Tasks"], "summary": "任务详情", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/tasks/ws": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "WS 任务信息（每三秒）",
+        "description": "WebSocket 升级，消息体为 JSON 数组；每 3 秒推送过去一周内的任务详情；支持通过查询参数 token=JWT 或子协议 Sec-WebSocket-Protocol: authorization, bearer-<base64JWT> 传递令牌",
+        "responses": { "200": { "description": "WebSocket 连接已建立" } }
+      }
+    },
+    "/ws/alerts": {
+      "get": {
+        "tags": ["WS"],
+        "summary": "WS 广播：健康与系统状态",
+        "description": "WebSocket 升级；每秒推送两类消息，基于 `type` 字段区分：`health.status` 与 `system.status`。鉴权支持 Authorization Bearer、查询参数 token/access_token、或子协议 bearer-<base64JWT>",
+        "responses": { "200": { "description": "WebSocket 连接已建立" } }
+      }
+    },
+    "/env/check/refresh/{server_id}": { "post": { "tags": ["EnvCheck.Refresh"], "summary": "刷新单台", "parameters": [{"name":"server_id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/refresh-all": { "post": { "tags": ["EnvCheck.Refresh"], "summary": "刷新全量", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/upload-lld": { "post": { "tags": ["EnvCheck.Upload"], "summary": "上传 LLD/Excel", "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type":"object","properties":{"file":{"type":"string","format":"binary"}}, "required":["file"]}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/env/check/apply-parse-result": { "post": { "tags": ["EnvCheck.Upload"], "summary": "应用解析结果", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/upload": { "post": { "tags": ["Connection"], "summary": "上传连接关系表", "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type":"object","properties":{"file":{"type":"string","format":"binary"}}, "required":["file"]}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/connections": { "get": { "tags": ["Connection"], "summary": "连接列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":20}}, {"name":"search","in":"query","schema":{"type":"string"}}, {"name":"device","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/devices": { "get": { "tags": ["Connection"], "summary": "设备列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":20}}, {"name":"search","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/ports": { "get": { "tags": ["Connection"], "summary": "端口列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":20}}, {"name":"search","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/cables": { "get": { "tags": ["Connection"], "summary": "线缆列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":20}}, {"name":"search","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/stats": { "get": { "tags": ["Connection"], "summary": "统计信息", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/connection/table/export": { "get": { "tags": ["Connection"], "summary": "导出连接", "responses": {"200": {"description":"文件", "content": {"text/csv": {"schema": {"type":"string"}}}}} } },
+    "/connection/table/devices/export": { "get": { "tags": ["Connection"], "summary": "导出设备", "responses": {"200": {"description":"文件", "content": {"text/csv": {"schema": {"type":"string"}}}}} } },
+    "/connection/table/ports/export": { "get": { "tags": ["Connection"], "summary": "导出端口", "responses": {"200": {"description":"文件", "content": {"text/csv": {"schema": {"type":"string"}}}}} } },
+    "/connection/table/cables/export": { "get": { "tags": ["Connection"], "summary": "导出线缆", "responses": {"200": {"description":"文件", "content": {"text/csv": {"schema": {"type":"string"}}}}} } },
+    "/connection/table/clear": { "delete": { "tags": ["Connection"], "summary": "清空表", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/software/install/start": { "post": { "tags": ["SoftwareInstall"], "summary": "开始安装", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/software/install/tasks": { "get": { "tags": ["SoftwareInstall"], "summary": "任务列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":10}}, {"name":"task_id","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/software/install/tasks/{task_id}": { "get": { "tags": ["SoftwareInstall"], "summary": "任务详情", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} }, "delete": { "tags": ["SoftwareInstall"], "summary": "取消任务", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/software/install/tasks/{task_id}/retry": { "post": { "tags": ["SoftwareInstall"], "summary": "重试任务", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/software/install/templates": { "get": { "tags": ["SoftwareInstall"], "summary": "安装模板", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/software/repo/packages": { 
+      "get": { "tags": ["SoftwareRepo"], "summary": "软件包列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":20}}, {"name":"name","in":"query","schema":{"type":"string"}}, {"name":"version","in":"query","schema":{"type":"string"}}, {"name":"arch","in":"query","schema":{"type":"string"}}, {"name":"os","in":"query","schema":{"type":"string"}}, {"name":"sort_by","in":"query","schema":{"type":"string","default":"created_at"}}, {"name":"order","in":"query","schema":{"type":"string","default":"desc"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResponseSoftwareRepoList"}}}}} }, 
+      "post": { "tags": ["SoftwareRepo"], "summary": "登记软件包", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object","properties":{"name":{"type":"string"},"version":{"type":"string"},"arch":{"type":"string"},"os":{"type":"string"},"repo_abs_path":{"type":"string"},"size_bytes":{"type":"integer"}}, "required":["name","version","arch","os","repo_abs_path","size_bytes"]}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResponseSoftwareRegister"}}}}} } 
+    },
+    "/software/repo/packages/{id}": { 
+      "put": { "tags": ["SoftwareRepo"], "summary": "更新软件包", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/SoftwarePackage"}}}}} }, 
+      "delete": { "tags": ["SoftwareRepo"], "summary": "删除软件包", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResponseSoftwareDelete"}}}}} } 
+    },
+
+    "/auth/users": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "创建用户（需要 auth 角色）",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" },
+                  "nickname": { "type": "string" },
+                  "remark": { "type": "string" },
+                  "roles": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      },
+      "get": {
+        "tags": ["Auth"],
+        "summary": "用户列表（未传分页返回全部，需 auth 角色）",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "username", "in": "query", "required": false, "schema": { "type": "string" }, "description": "前缀查询" }, {"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":20}} ],
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+
+    "/auth/users/{id}": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "更新用户（需要 auth 角色）",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": { "type": "string" },
+                  "nickname": { "type": "string" },
+                  "remark": { "type": "string" },
+                  "status": { "type": "integer" },
+                  "roles": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      },
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "删除用户（需要 auth 角色）",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BaseResponse" } } } } }
+      }
+    },
+    "/gpu/fld/test/start": { "post": { "tags": ["GPU.FLD"], "summary": "FLD 启动测试", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/fld/test/{id}": { "get": { "tags": ["GPU.FLD"], "summary": "FLD 获取测试", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/fld/test": { "get": { "tags": ["GPU.FLD"], "summary": "FLD 测试列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":10}}, {"name":"id","in":"query","schema":{"type":"string"}}, {"name":"search","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/fld/test/{id}/cancel": { "post": { "tags": ["GPU.FLD"], "summary": "FLD 取消测试", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/fld/status": { "get": { "tags": ["GPU.FLD"], "summary": "FLD 状态", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/fld/ws/{id}": { "get": { "tags": ["GPU.FLD"], "summary": "FLD WebSocket", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"升级连接", "content": {"application/json": {"schema": {"type":"string"}}}}} } },
+    "/gpu/burn/test": { "post": { "tags": ["GPU.Burn"], "summary": "Burn 启动测试", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/test/{test_id}/status": { "get": { "tags": ["GPU.Burn"], "summary": "Burn 测试状态", "parameters": [{"name":"test_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/test/{test_id}/results": { "get": { "tags": ["GPU.Burn"], "summary": "Burn 测试结果", "parameters": [{"name":"test_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/test/{test_id}": { "delete": { "tags": ["GPU.Burn"], "summary": "取消/删除测试", "parameters": [{"name":"test_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/tests": { "get": { "tags": ["GPU.Burn"], "summary": "测试列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":10}}, {"name":"test_id","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/servers/status": { "post": { "tags": ["GPU.Burn"], "summary": "服务器状态汇总", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/cleanup": { "post": { "tags": ["GPU.Burn"], "summary": "清理测试资源", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/burn/health": { "get": { "tags": ["GPU.Burn"], "summary": "健康检查", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/stress/test": { "post": { "tags": ["GPU.Stress"], "summary": "Stress 启动测试", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/stress/test/{test_id}": { "get": { "tags": ["GPU.Stress"], "summary": "Stress 测试详情", "parameters": [{"name":"test_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } ,"delete": { "tags": ["GPU.Stress"], "summary": "取消测试", "parameters": [{"name":"test_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} }},
+    "/gpu/stress/tests": { "get": { "tags": ["GPU.Stress"], "summary": "测试列表（未传分页返回全部）", "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "page_size", "in": "query", "schema": { "type": "integer" } } ], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/stress/status": { "get": { "tags": ["GPU.Stress"], "summary": "服务状态", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/stress/servers": { "get": { "tags": ["GPU.Stress"], "summary": "服务器列表", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/stress/logs/{test_id}": { "get": { "tags": ["GPU.Stress"], "summary": "测试日志", "parameters": [{"name":"test_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"文本", "content": {"text/plain": {"schema": {"type":"string"}}}}} } },
+    "/gpu/stress/test-types": { "get": { "tags": ["GPU.Stress"], "summary": "测试类型", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/p2p/test/start": { "post": { "tags": ["GPU.P2P"], "summary": "P2P 启动测试", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/p2p/test/{id}": { "get": { "tags": ["GPU.P2P"], "summary": "P2P 获取测试", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/p2p/test": { "get": { "tags": ["GPU.P2P"], "summary": "P2P 测试列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":10}}, {"name":"id","in":"query","schema":{"type":"string"}}, {"name":"search","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/p2p/test/{id}/cancel": { "post": { "tags": ["GPU.P2P"], "summary": "P2P 取消测试", "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/gpu/p2p/status": { "get": { "tags": ["GPU.P2P"], "summary": "P2P 状态", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/templates": { "get": { "tags": ["BatchInstall"], "summary": "批量装机模板", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/services/status": { "get": { "tags": ["BatchInstall"], "summary": "服务状态", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/services/start": { "post": { "tags": ["BatchInstall"], "summary": "启动装机服务", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/isos": { "get": { "tags": ["BatchInstall"], "summary": "ISO 列表", "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/upload-iso": { "post": { "tags": ["BatchInstall"], "summary": "上传 ISO", "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type":"object","properties":{"file":{"type":"string","format":"binary"}}, "required":["file"]}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/create-autoinstall": { "post": { "tags": ["BatchInstall"], "summary": "生成自动安装文件", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/start-batch-install": { "post": { "tags": ["BatchInstall"], "summary": "开始批量装机", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type":"object"}}}}, "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/tasks": { "get": { "tags": ["BatchInstall"], "summary": "任务列表", "parameters": [{"name":"page","in":"query","schema":{"type":"integer","default":1}}, {"name":"page_size","in":"query","schema":{"type":"integer","default":10}}, {"name":"task_id","in":"query","schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/tasks/{task_id}": { "get": { "tags": ["BatchInstall"], "summary": "任务详情", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} }, "delete": { "tags": ["BatchInstall"], "summary": "取消任务", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"成功","content": {"application/json": {"schema": {"$ref": "#/components/schemas/BaseResponse"}}}}} } },
+    "/batch-install/logs/{task_id}/{target_ip}": { "get": { "tags": ["BatchInstall"], "summary": "任务日志", "parameters": [{"name":"task_id","in":"path","required":true,"schema":{"type":"string"}}, {"name":"target_ip","in":"path","required":true,"schema":{"type":"string"}}], "responses": {"200": {"description":"文本", "content": {"text/plain": {"schema": {"type":"string"}}}}} } }
+  }
+}
