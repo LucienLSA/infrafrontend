@@ -1,20 +1,20 @@
-import { requestClient } from './request';
+import { requestClient } from "./request";
 
 // 服务器环境信息接口
 export interface ServerEnvInfo {
   id: string;
   name: string;
   ip: string;
-  status: 'online' | 'offline' | 'error';
-  os: string;
-  kernel: string;
-  driverVersion: string;
-  gpuCount: number;
-  diskCount: number;
-  totalMemory: string;
-  cpuCores: number;
-  lastCheck: string;
+  status: "error" | "maintenance" | "offline" | "online";
+  server_type: string;
   location: string;
+  cpu_model: string;
+  cpu_cores: number;
+  total_memory_gb: number;
+  gpu_count: number;
+  gpu_model: string;
+  os_name: string;
+  last_check_at: string;
 }
 
 // 环境检查统计接口
@@ -39,16 +39,15 @@ export interface EnvCheckQueryParams {
 
 // 响应接口
 export interface EnvCheckListResponse {
-  list: ServerEnvInfo[];
+  items: ServerEnvInfo[];
   total: number;
-  stats: EnvCheckStats;
 }
 
 /**
  * 获取服务器环境信息列表
  */
 export function getServerEnvInfoList(params?: EnvCheckQueryParams) {
-  return requestClient.get<EnvCheckListResponse>('/api/v1/env-check/servers', {
+  return requestClient.get<EnvCheckListResponse>("/api/v1/env-check/servers", {
     params,
   });
 }
@@ -57,7 +56,7 @@ export function getServerEnvInfoList(params?: EnvCheckQueryParams) {
  * 获取环境检查统计数据
  */
 export function getEnvCheckStats() {
-  return requestClient.get<EnvCheckStats>('/api/v1/env-check/stats');
+  return requestClient.get<EnvCheckStats>("/api/v1/env-check/stats");
 }
 
 /**
@@ -71,21 +70,23 @@ export function refreshServerEnvInfo(serverId: string) {
  * 批量刷新所有服务器环境信息
  */
 export function refreshAllServerEnvInfo() {
-  return requestClient.post('/api/v1/env-check/refresh-all');
+  return requestClient.post("/api/v1/env-check/refresh-all");
 }
 
 /**
  * 获取单个服务器详细环境信息
  */
 export function getServerEnvDetail(serverId: string) {
-  return requestClient.get<ServerEnvInfo>(`/api/v1/env-check/detail/${serverId}`);
+  return requestClient.get<ServerEnvInfo>(
+    `/api/v1/env-check/servers/${serverId}`,
+  );
 }
 
 /**
  * 检查服务器环境兼容性
  */
 export function checkServerCompatibility(serverIds: string[]) {
-  return requestClient.post('/api/v1/env-check/compatibility', {
+  return requestClient.post("/api/v1/env-check/compatibility", {
     serverIds,
   });
 }
@@ -93,9 +94,9 @@ export function checkServerCompatibility(serverIds: string[]) {
 /**
  * 导出环境信息报告
  */
-export function exportEnvReport(format: 'excel' | 'pdf' = 'excel') {
+export function exportEnvReport(format: "excel" | "pdf" = "excel") {
   return requestClient.get(`/api/v1/env-check/export/${format}`, {
-    responseType: 'blob',
+    responseType: "blob",
   });
 }
 
@@ -103,12 +104,12 @@ export function exportEnvReport(format: 'excel' | 'pdf' = 'excel') {
  * 获取环境检查历史记录
  */
 export function getEnvCheckHistory(params?: {
+  endDate?: string;
   page?: number;
   pageSize?: number;
   startDate?: string;
-  endDate?: string;
 }) {
-  return requestClient.get('/api/v1/env-check/history', {
+  return requestClient.get("/api/v1/env-check/history", {
     params,
   });
 }
@@ -124,9 +125,7 @@ export function executeServerCheck(serverId: string) {
  * 批量执行服务器环境检查
  */
 export function batchExecuteCheck(serverIds: string[]) {
-  return requestClient.post('/api/v1/env-check/batch-check', {
-    server_ids: serverIds.map(id => parseInt(id))
+  return requestClient.post("/api/v1/env-check/batch-check", {
+    server_ids: serverIds.map((id) => Number.parseInt(id)),
   });
 }
-
-

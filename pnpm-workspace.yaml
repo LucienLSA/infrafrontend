@@ -90,7 +90,7 @@ catalog:
   dotenv: ^16.6.1
   echarts: ^5.6.0
   element-plus: ^2.10.2
-  eslint: ^9.30.1
+  eslint: 9.30.1
   eslint-config-turbo: ^2.5.4
   eslint-plugin-command: ^3.3.1
   eslint-plugin-eslint-comments: ^3.2.0
@@ -138,7 +138,7 @@ catalog:
   postcss-import: ^16.1.1
   postcss-preset-env: 10.2.4
   postcss-scss: ^4.0.9
-  prettier: ^3.6.2
+  prettier: 3.6.2
   prettier-plugin-tailwindcss: ^0.6.13
   publint: ^0.3.12
   qrcode: ^1.5.4
@@ -151,7 +151,7 @@ catalog:
   sass: ^1.89.2
   secure-ls: ^2.0.0
   sortablejs: ^1.15.6
-  stylelint: ^16.21.0
+  stylelint: 16.21.0
   stylelint-config-recess-order: ^6.1.0
   stylelint-config-recommended: ^16.0.0
   stylelint-config-recommended-scss: ^14.1.0
