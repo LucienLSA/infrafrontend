@@ -19,7 +19,7 @@ catalogs:
       specifier: ^0.10.1
       version: 0.10.1
     '@commitlint/cli':
-      specifier: ^19.8.1
+      specifier: 19.8.1
       version: 19.8.1
     '@commitlint/config-conventional':
       specifier: ^19.8.1
@@ -503,6 +503,9 @@ importers:
       '@changesets/cli':
         specifier: 'catalog:'
         version: 2.29.7(@types/node@22.16.0)
+      '@commitlint/cli':
+        specifier: 'catalog:'
+        version: 19.8.1(@types/node@22.16.0)(typescript@5.8.3)
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.56.1
@@ -13851,7 +13854,7 @@ snapshots:
 
   '@types/conventional-commits-parser@5.0.1':
     dependencies:
-      '@types/node': 20.19.15
+      '@types/node': 22.16.0
 
   '@types/deep-eql@4.0.2': {}
 
@@ -15406,7 +15409,7 @@ snapshots:
     dependencies:
       '@types/node': 22.16.0
       cosmiconfig: 9.0.0(typescript@5.8.3)
-      jiti: 2.4.2
+      jiti: 2.5.1
       typescript: 5.8.3
 
   cosmiconfig@7.1.0:
